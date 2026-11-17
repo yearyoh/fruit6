@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Teachable Machine - Image Upload</title>
+    <!-- นำเข้าฟอนต์ภาษาไทยสวยๆ จาก Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;600&display=swap" rel="stylesheet">
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Prompt', sans-serif;
+        }
+
+        body {
+            background-color: #f0f2f5;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 20px;
+            color: #333;
+        }
+
+        .card {
+            background: #ffffff;
+            width: 100%;
+            max-width: 450px;
+            padding: 30px;
+            border-radius: 16px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.08);
+            text-align: center;
+        }
+
+        h2 {
+            font-size: 1.5rem;
+            font-weight: 600;
+            margin-bottom: 8px;
+            color: #1a1a1a;
+        }
+
+        p.subtitle {
+            font-size: 0.9rem;
+            color: #666;
+            margin-bottom: 24px;
+        }
+
+        /* ซ่อน input file แบบเดิม */
+        #image-upload {
+            display: none;
+        }
+
+        /* ตกแต่งปุ่ม Upload */
+        .upload-btn {
+            display: inline-block;
+            background-color: #4f46e5;
+            color: white;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: 400;
+            cursor: pointer;
+            transition: background-color 0.3s ease, transform 0.1s ease;
+            box-shadow: 0 4px 12px rgba(79, 70, 229, 0.25);
+        }
+
+        .upload-btn:hover {
+            background-color: #4338ca;
+        }
+
+        .upload-btn:active {
+            transform: scale(0.98);
+        }
+
+        /* พื้นที่แสดงตัวอย่างรูปภาพ */
+        .image-preview-container {
+            margin: 20px auto;
+            width: 240px;
+            height: 240px;
+            border: 2px dashed #cbd5e1;
+            border-radius: 12px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            overflow: hidden;
+            background-color: #f8fafc;
+            position: relative;
+        }
+
+        .image-preview-container img {
+            max-width: 100%;
+            max-height: 100%;
+            object-fit: contain;
+            display: none;
+        }
+
+        .placeholder-text {
+            color: #94a3b8;
+            font-size: 0.85rem;
+        }
+
+        /* กล่องสรุปผลลัพธ์หลัก (ประเภทที่ตรวจพบ) */
+        .result-box {
+            display: none; /* ซ่อนไว้ก่อนจนกว่าจะวิเคราะห์เสร็จ */
+            background-color: #ecfdf5;
+            border: 1.5px solid #10b981;
+            border-radius: 12px;
+            padding: 14px;
+            margin-bottom: 20px;
+            animation: fadeIn 0.4s ease;
+        }
+
+        .result-title {
+            font-size: 0.85rem;
+            color: #047857;
+            margin-bottom: 4px;
+        }
+
+        .result-class {
+            font-size: 1.35rem;
+            font-weight: 600;
+            color: #065f46;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(-5px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* พื้นที่แสดงผลลัพธ์การทำนายทั้งหมด */
+        #label-container {
+            margin-top: 10px;
+            text-align: left;
+            border-top: 1px solid #e2e8f0;
+            padding-top: 16px;
+        }
+
+        .prediction-item {
+            margin-bottom: 12px;
+        }
+
+        .prediction-header {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.9rem;
+            margin-bottom: 4px;
+            font-weight: 500;
+        }
+
+        .progress-bar-bg {
+            width: 100%;
+            height: 10px;
+            background-color: #e2e8f0;
+            border-radius: 999px;
+            overflow: hidden;
+        }
+
+        .progress-bar-fill {
+            height: 100%;
+            background-color: #10b981;
+            width: 0%;
+            transition: width 0.4s ease;
+            border-radius: 999px;
+        }
+
+        #status-text {
+            font-size: 0.85rem;
+            color: #64748b;
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="card">
+        <h2>Teachable Machine</h2>
+        <p class="subtitle">อัปโหลดรูปภาพ 1 ภาพเพื่อวิเคราะห์ประเภท</p>
+
+        <!-- ปุ่มอัปโหลดไฟล์ -->
+        <label for="image-upload" class="upload-btn">
+            📁 เลือกรูปภาพ (Upload)
+        </label>
+        <input type="file" id="image-upload" accept="image/*" onchange="handleImageUpload(event)">
+
+        <div id="status-text">กำลังโหลดโมเดล...</div>
+
+        <!-- กรอบแสดงรูปภาพที่อัปโหลด -->
+        <div class="image-preview-container">
+            <span class="placeholder-text" id="placeholder">ยังไม่ได้เลือกรูปภาพ</span>
+            <img id="preview-image" alt="Uploaded Image">
+        </div>
+
+        <!-- กล่องสรุปประเภทที่ทำนายได้สูงสุด -->
+        <div id="result-box" class="result-box">
+            <div class="result-title">ผลการวิเคราะห์ประเภทคือ</div>
+            <div id="top-result-text" class="result-class">-</div>
+        </div>
+
+        <!-- กล่องแสดงรายละเอียดเปอร์เซ็นต์ทุกประเภท -->
+        <div id="label-container"></div>
+    </div>
+
+    <!-- Scripts ของ TensorFlow และ Teachable Machine -->
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@latest/dist/tf.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@teachablemachine/image@latest/dist/teachablemachine-image.min.js"></script>
+    
+    <script type="text/javascript">
+        // โฟลเดอร์ที่เก็บไฟล์โมเดลของคุณ
+        const URL = "./my_model/";
+
+        let model, labelContainer, maxPredictions;
+
+        // 1. โหลดโมเดลทันทีที่เปิดหน้าเว็บ
+        async function loadModel() {
+            const modelURL = URL + "model.json";
+            const metadataURL = URL + "metadata.json";
+
+            try {
+                model = await tmImage.load(modelURL, metadataURL);
+                maxPredictions = model.getTotalClasses();
+                
+                // เตรียมพื้นที่สำหรับแสดงผลลัพธ์ตามจำนวน Class
+                labelContainer = document.getElementById("label-container");
+                labelContainer.innerHTML = "";
+                for (let i = 0; i < maxPredictions; i++) {
+                    const itemDiv = document.createElement("div");
+                    itemDiv.className = "prediction-item";
+                    itemDiv.innerHTML = `
+                        <div class="prediction-header">
+                            <span class="class-name">-</span>
+                            <span class="class-prob">0%</span>
+                        </div>
+                        <div class="progress-bar-bg">
+                            <div class="progress-bar-fill"></div>
+                        </div>
+                    `;
+                    labelContainer.appendChild(itemDiv);
+                }
+                document.getElementById("status-text").innerText = "พร้อมใช้งาน! กรุณาอัปโหลดรูปภาพ";
+            } catch (error) {
+                document.getElementById("status-text").innerText = "เกิดข้อผิดพลาดในการโหลดโมเดล (ตรวจสอบโฟลเดอร์ my_model)";
+                console.error(error);
+            }
+        }
+
+        // 2. จัดการเมื่อผู้ใช้เลือกไฟล์ภาพ
+        function handleImageUpload(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const imgElement = document.getElementById("preview-image");
+                const placeholder = document.getElementById("placeholder");
+                
+                imgElement.src = e.target.result;
+                imgElement.style.display = "block";
+                placeholder.style.display = "none";
+
+                imgElement.onload = async function() {
+                    await predict(imgElement);
+                };
+            };
+            reader.readAsDataURL(file);
+        }
+
+        // 3. นำรูปภาพเข้าสู่โมเดลเพื่อทำนายผลและหาประเภทที่มีคะแนนสูงสุด
+        async function predict(imageElement) {
+            if (!model) {
+                alert("กรุณารอให้โมเดลโหลดเสร็จสักครู่");
+                return;
+            }
+
+            const prediction = await model.predict(imageElement);
+            
+            let highestProb = 0;
+            let bestClass = "";
+
+            for (let i = 0; i < maxPredictions; i++) {
+                const className = prediction[i].className;
+                const prob = prediction[i].probability;
+                const percentage = (prob * 100).toFixed(1);
+
+                // เช็กหาประเภทที่ได้คะแนนความน่าจะเป็นสูงสุด
+                if (prob > highestProb) {
+                    highestProb = prob;
+                    bestClass = className;
+                }
+
+                // อัปเดตแถบเปอร์เซ็นต์ด้านล่าง
+                const itemDiv = labelContainer.childNodes[i];
+                itemDiv.querySelector(".class-name").innerText = className;
+                itemDiv.querySelector(".class-prob").innerText = percentage + "%";
+                itemDiv.querySelector(".progress-bar-fill").style.width = percentage + "%";
+            }
+
+            // แสดงกล่องผลลัพธ์สรุปด้านบน
+            const resultBox = document.getElementById("result-box");
+            const topResultText = document.getElementById("top-result-text");
+            
+            topResultText.innerText = `${bestClass} (${(highestProb * 100).toFixed(1)}%)`;
+            resultBox.style.display = "block";
+        }
+
+        window.onload = loadModel;
+    </script>
+</body>
+</html>
